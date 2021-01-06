@@ -55,7 +55,17 @@ rule all:
                               length=config['ANIAssemblyFilterSize'],
                               processing=all_taxon_processing,
                               thresh=config['ANIRepatIdentThreshold'],
-                              match=config['ANIRepatCountThreshold'])
+                              match=config['ANIRepatCountThreshold']),
+        blast_p_binners = expand(
+            "BlastBinners/particle/Original/blastn.{number}.txt",
+            number=particle_bins),
+        blast_s_binners = expand(
+            "BlastBinners/supernatant/Original/blastn.{number}.txt",
+            number=supernatant_bins),
+        download_assemblies=expand(
+            "GFFAnnotation/{sample}/{sample}.{processing}.TopBinGenomeDBAcc.success.txt",
+            sample=config['samples'],
+            processing="Full10000_OriginalTaxonRemovedA80R99ANIRepatT95M20"),
 
 
 # ~~~~~~~~~~ STEP 0: General Processing ~~~~~~~~~~ #
