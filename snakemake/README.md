@@ -1,7 +1,7 @@
 ## README File Corresponding to 'base_metagenomics.sm'
 
 Initial tree structure of working directory should follow this pattern:
-
+'''bash
 .
 ├── config
 │   ├── cluster.json
@@ -20,6 +20,7 @@ Initial tree structure of working directory should follow this pattern:
     ├── logs
     ├── scripts
     └── snake.smk
+'''
 Note: This general pattern may change depending on the analysis, but should follow a similar pattern.
 
 ## File purposes:
