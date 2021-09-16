@@ -107,3 +107,10 @@ The config file should look like this:
 -
 
 
+```diff
+- text in red
+@@ text in purple @@
++ text in green
+# text in gray
+! text in orange
+```
