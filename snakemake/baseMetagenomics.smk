@@ -1,8 +1,8 @@
 '''
-Dane note: 02Nov20
-Authors: Dane Deemer and Renee Oles
+Dane note: 16Sep21
+Authors: Dane Deemer
 Purpose: Snakemake pipeline that takes fastq DNA reads and bins
-using a reference assebmly 
+using a reference assembly 
 Input: 
 - Samples 
 - Index (sample identifiers)
@@ -28,29 +28,12 @@ rule all:
 
 
 # ~~~~~~~~~~ STEP 0: Essentials ~~~~~~~~~~ #
-# [Assembly Indexing - Alignment - Bam Sorting - Bam Indexing]
+# [Fastq QC/Trimming - Assembly Indexing - Alignment - Bam Sorting - Bam Indexing]
 
-# Filter fastq files
-
-
-# COMMENT INSERTED IN RULE
-'''
-For faster results we could run this 1 sample at a time, only expanding the 'num' value and
-keeping {sample} as a general wildcard not specific in the input rule.
-We do run into the case where .fastq reads won't be paired-end or labeled as {sample}_{num}.fasta, so
-we will keep that in mind going forward. There's also a program called 'MultiQC' that we could use too.
-'''
-rule filter_fastq:
-# rule run_fastqc:
-'''
-I also propose everytime we run a program we standardize rule names as 'run_{program}',
-everytime we run a custom script use 'custom_{script}', and anything via defaults as another
-standardization. Thoughts?
-'''
+rule FastQC_Exec:
     input:
-        #reads=expand("../input/Fastq/{samples}_{num}.fastq", samples=config['samples'], num=["R1","R2"])
-        reads_alt = expand("../input/Fastq/{{samples}}_{num}.fastq", num=["R1","R2"])
-:    params:
+        read_pairs = expand("../input/Fastq/{{samples}}_{num}.fastq", num=["R1","R2"])
+    params:
         threads=config["threads"]
     conda:
         "envs/fastqc.yaml"
@@ -62,14 +45,25 @@ standardization. Thoughts?
     shell:
         """
         mkdir {output.directory}
-        fastqc -t {params} --outdir {output.directory} {input.reads}
+        fastqc -t {params} --outdir {output.directory} {input.read_pairs}
         """
 
+rule Trimmomatic_Exec:
+    input:
+        read_pairs=expand("../input/Fastq/{{samples}}_{num}.fastq", num=["R1","R2"])
+    params:
+        threads=config["threads"]
+    output:
+        processed_read_pairs=expand("Fastq-Trimmed/{{samples}}-{tval}_R1.fastq", tval=["Trimmed", "Untrimmed"])
+    shell:
+        """
+        trimmomatic PE {input.read_pairs} {output.processed_read_pairs} SLIDINGWINDOW:4:20 MINLEN:25 ILLUMINACLIP:NexteraPE-PE.fa:2:40:15
+        """
 
 
 # Index the assembly (or any fasta file)
 # rule run_bowtie2_index:
-rule index_assembly:
+rule Bowtie2Index_Exec:
     input:
         #needed=directory("FastqFiltered"), # Don't necessarily need this. Could index without fastQC
         assembly="../input/Assembly/{index}.fasta"
@@ -86,7 +80,7 @@ rule index_assembly:
         "bowtie2-build -f --threads {params.threads} {input.assembly} {params.index} >> {log}"
 
 # Align fastq files to indexed assembly from above rule
-rule bowtie2_alignment:
+rule Bowtie2Alignment_Exec:
     input:
         reads=expand("../input/Fastq/{{sample}}_{num}.fastq", num=["R1","R2"]),
         i=f"AssemblyIndex/{config['index']}.1.bt2"
@@ -103,7 +97,7 @@ rule bowtie2_alignment:
         "(bowtie2 --threads {params.threads} -x {params.index} -1 {input.reads[0]} -2 {input.reads[1]} | samtools view -b -o {output}) &> {log}"
 
 # Sort bam file created from above rule
-rule bam_sorting:
+rule SamToolsSort_Exec:
     input:
         "Bam/{sample}.bam"
     params:
@@ -119,7 +113,7 @@ rule bam_sorting:
         "samtools sort -@{params.threads} -T {params.prefix} -o {output} {input} &> {log}"
 
 # bam_indexing: Index the bam file (required for downstream programs)
-rule bam_indexing:
+rule SamToolsIndex_Exec:
     input:
         "Bam/{sample}.original.sorted.bam"
     conda:
@@ -136,7 +130,7 @@ rule bam_indexing:
 # [Bam Filtering - Calculating Coverage - Abundance Filter - Abundance File Merge]
 
 # Filter BAM files to only contain reads mapping above a certain threshold of percent identity.
-rule filter_bams:
+rule FilterBams_Script:
     input:
         "Bam/{sample}.original.sorted.bam"
     params:
@@ -152,7 +146,7 @@ rule filter_bams:
         "(samtools view -h {input} | python scripts/sam_threshold_filter.py -s {params.readsize} -t {params.threshold} | samtools view -b -o {output} && samtools index -@20 {output}) &> {log}"
 
 # Calculate coverage stats per contig
-rule bbmap_stats:
+rule BBMapCoverage_Exec:
     input:
         "Bam/{sample}.{processing}.sorted.bam"
     conda:
@@ -164,7 +158,7 @@ rule bbmap_stats:
     shell:
         "pileup.sh in={input} out={output} &> {log}"
 
-rule get_cov_file:
+rule FormatAbundanceBBMap_Shell:
     input:
         "Abundances/{sample}.{processing}.coverage.txt"
     output:
@@ -172,7 +166,7 @@ rule get_cov_file:
     shell:
         "cut -f 1,5 {input} | grep -v '^#' > {output}"
 
-rule get_abund_list:
+rule AppendAbundanceList_Script:
     input:
         expand("Abundances/{sample}.{{processing}}.abundance.txt", sample=config["samples"])
     output:
@@ -180,7 +174,7 @@ rule get_abund_list:
     script:
         "scripts/make_abund_list.py"
 
-rule run_maxbin:
+rule Maxbin2Binning_Exec:
     input:
         abund="Abundances/abundance_list.{processing}.txt",
         scaff=expand("../input/Assembly/{index}.fasta", index=config['index'])
