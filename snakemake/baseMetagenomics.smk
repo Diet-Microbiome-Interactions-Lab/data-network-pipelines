@@ -174,13 +174,16 @@ rule AppendAbundanceList_Script:
     script:
         "scripts/make_abund_list.py"
 
+
+# Contig binning
+
 rule Maxbin2Binning_Exec:
     input:
         abund="Abundances/abundance_list.{processing}.txt",
         scaff=expand("../input/Assembly/{index}.fasta", index=config['index'])
     params:
-        pref=directory("Maxbin/{processing}/bins"),
-        directory=directory("Maxbin")
+        pref=directory("Maxbin/{processing}"),
+        threads=config["threads"]
     conda:
         "envs/maxbin.yaml"
     output:
@@ -189,13 +192,11 @@ rule Maxbin2Binning_Exec:
         #log="logs/maxbin2_{processing}_.log"
     shell:
         """
-        module load MaxBin/2.2.3
-        run_MaxBin.pl -contig {input.scaff} -out {params.pref} -abund_list {input.abund}
-        touch {params.directory}
+        run_MaxBin.pl -contig {input.scaff} -out {params.pref}/bins -abund_list {input.abund}
         """
 
 # Metabat create depth file 
-rule metabat2_setup:
+rule CreateDepthForMetabat_Exec:
     input:
         directory=directory("Maxbin"),
         bam=expand("Bam/{sample}.{{processing}}.sorted.bam", sample=config['samples'])
@@ -209,7 +210,7 @@ rule metabat2_setup:
         """
 
 # Metabat create bins
-rule metabat2_bin:
+rule Metabat2Binning_Exec:
     input:
         depth="Metabat/depth.{processing}.txt"
     conda:
@@ -228,7 +229,7 @@ rule metabat2_bin:
         """
 
 # Concoct create index 
-rule concoct_index:
+rule CreateBedForConcoct_Exec:
     input:
         metabat=directory("Metabat/{processing}"),
         concoct=expand("../input/Assembly/{index}.fasta", index=config["index"])
@@ -242,7 +243,7 @@ rule concoct_index:
         "cut_up_fasta.py {input.concoct} -c 10000 -o 0 --merge_last -b {output.bed} > {params.fasta}"
 
 #Make a coverage table using bam files
-rule concoct_coverage:
+rule CreateCoverageTableConcoct_Exec:
     input:
         bed=expand("Concoct/{index}_10k.bed", index=config['index'])
     params:
@@ -257,7 +258,7 @@ rule concoct_coverage:
         "concoct_coverage_table.py {input} {params.bam} > {output}"
 
 #Run concoct
-rule run_concoct:
+rule ConcoctBinning_Exec:
     input:
         coverage="Concoct/coverage_table.{processing}.tsv"
     conda:
@@ -305,7 +306,7 @@ rule extract_concoct:
 
 # Estimate completion and contamination for original binning
 
-rule run_checkm:
+rule CheckmQC_Exec:
     input:
         "{binner}/{processing}"
     conda:
@@ -361,21 +362,3 @@ rule run_refinem2:
 # Estimate completion and contamination after refinement
 '''
 
-rule run_checkm:
-    input:
-        "RefineM/{path}/{path}.log"
-    conda:
-        "envs/binning.yaml"
-    params:
-        threads=config['threads'],
-        out="CheckM/{path}/"
-    output:
-        "CheckM/{path}/lineage.ms"
-    log:
-        "logs/checkm_{path}.log"
-    shell:
-        """
-        checkm lineage_wf -t {params.threads} -x fasta {input} {params.out} &> {log}
-        checkm qa -t {params.threads} {output} {params.out} &> {log}
-        """
-'''
