@@ -77,7 +77,8 @@ Given the tree structure above, first index the assembly file (W1.contigs.fasta)
 1. Since all paths are relative to the snake.smk file, first enter the directory containing snake.smk
 2. Add the following code to the empty snake.smk file:
 
-*File start
+
+<sub><sub><sub>Start of file</sub></sub></sub>
 -
 <span style="color:red">
 Add some text here
