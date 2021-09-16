@@ -1,7 +1,35 @@
 ## README File Corresponding to 'base_metagenomics.sm'
-
+- 📂 __MetagenomicsSkelton__
+   - 📄 [README.md](README.md)
+   - 📂 __config__
+     - 📄 [cluster.json](config/cluster.json)
+     - 📄 [config.yaml](config/config.yaml)
+   - 📂 __input__
+     - 📂 __Assembly__
+       - 📄 [readme.txt](input/Assembly/readme.txt)
+     - 📂 __Bat__
+       - 📄 [readme.txt](input/Bat/readme.txt)
+     - 📂 __Cat__
+       - 📄 [readme.txt](input/Cat/readme.txt)
+     - 📂 __Fastq__
+       - 📄 [readme.txt](input/Fastq/readme.txt)
+     - 📂 __GFF__
+       - 📄 [readme.txt](input/GFF/readme.txt)
+     - 📂 __OriginalBins__
+       - 📄 [readme.txt](input/OriginalBins/readme.txt)
+   - 📂 __workflow__
+     - 📄 [binProcessing.smk](workflow/binProcessing.smk)
+     - 📂 __envs__
+       - 📄 [readme.txt](workflow/envs/readme.txt)
+     - 📄 [readme.txt](workflow/readme.txt)
+     - 📂 __scripts__
+       - 📄 [aniContigRecycler.py](workflow/scripts/aniContigRecycler.py)
+       - 📄 [appendBinsToANI.py](workflow/scripts/appendBinsToANI.py)
+       - 📄 [filterSeqLength.py](workflow/scripts/filterSeqLength.py)
+       - 📄 [getContigBinIdentifier.py](workflow/scripts/getContigBinIdentifier.py)
+       - 📄 [splitFastaByEntry.py](workflow/scripts/splitFastaByEntry.py)
+       - 📄 [taxonFilter.py](workflow/scripts/taxonFilter.py)
 Initial tree structure of working directory should follow this pattern:
-'''bash
 .
 ├── config
 │   ├── cluster.json
