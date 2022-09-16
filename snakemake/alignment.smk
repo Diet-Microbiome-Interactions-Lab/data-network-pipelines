@@ -1,74 +1,173 @@
-pe_fastqs, num, = glob_wildcards("fastq/{sample}_{num}.fastq.gz")
-#se_fastqs, = glob_wildcards("{sample}.fastq.gz")
-print(f'PE: ({pe_fastqs},{num})')
-#print(f'SE: {se_fastqs}')
+configfile: os.environ['DEFAULT_CONFIG']
+
+assemblies, = glob_wildcards(f'{config["assembly"]}/{{samples}}.{config["assembly_extension"]}')
+#print(f'Assemblies: {assemblies}')
+
+pe_fqs, = glob_wildcards(f'{config["fastq"]}/{{fq_samples}}_1.{config["fq_extension"]}')
+#print(pe_fqs)
+#print('Now to the se...')
+se_fqs, = glob_wildcards(f'{config["fastq"]}/{{fq_samples}}.{config["fq_extension"]}')
+se_fqs = [f for f in se_fqs if '_1' not in f]
+se_fqs = [f for f in se_fqs if '_2' not in f]
+#print(se_fqs)
+
 rule all:
     input:
-        expand("Bams/{fq}.sorted.bam.bai", fq=pe_fastqs),
-        #expand("Bams/{fq}.sorted.bam.bai", fq=se_fastqs)
+        expand(f"{config['assembly']}/{{sample}}-SIMPLIFIED.1.bt2", sample=assemblies),
+        expand("Bams/PE_{sample}-{fq}.sorted.bam.bai", fq=pe_fqs, sample=assemblies),
+        expand("Bams/SE_{sample}-{fq}.sorted.bam.bai", fq=se_fqs, sample=assemblies),
+        expand("Abundances/PE_{sample}-{fq}.abundance.txt", fq=pe_fqs, sample=assemblies),
+        "Abundances/Abundance_List.txt",
+        "Depths/Depth_List.txt",
+        expand("Beds/{sample}.coverage_table.tsv", sample=assemblies)
 
-rule create_index:
+rule Reformat_Fasta:
     input:
-        'Assembly/XG_sample0_contigs.fasta'
-    params:
-        prefix='Assembly/XG'
+        f'{config["assembly"]}/{{sample}}.{config["assembly_extension"]}'
+    output:
+        f'{config["clean_assembly"]}/{{sample}}-SIMPLIFIED.fasta'
+    log: f'Logs/Reformat_Fasta/{{sample}}.{config["log_id"]}.log' 
+    group: "Indexing"
     priority: 100
-    output:
-        'Assembly/XG.1.bt2'
     shell:
         """
-        bowtie2-build --threads 40 -f {input} {params.prefix}
+        anvi-script-reformat-fasta {input} -o {output} --simplify-names --seq-type NT &> {log}
         """
 
-
-rule align_pe_bams:
+rule Create_Index:
     input:
-        index="Assembly/XG.1.bt2",
-        pe1="fastq/{fq}_1.fastq.gz",
-        pe2="fastq/{fq}_2.fastq.gz"
+        f'{config["clean_assembly"]}/{{sample}}-SIMPLIFIED.fasta'
+    output:
+        f'{config["assembly"]}/{{sample}}-SIMPLIFIED.1.bt2'
+    log: f'Logs/Create_Index/{{sample}}.{config["log_id"]}.log'
     params:
-        index="Assembly/XG"
+        prefix=f'{config["assembly"]}/{{sample}}-SIMPLIFIED'
+    group: "Indexing"
     priority: 100
-    group: "main"
-    output:
-        bam="Bams/{fq}.bam"
+    threads: config["threads"]
     shell:
         """
-        bowtie2 --threads 128 -k 5 -x {params.index} -1 {input.pe1} -2 {input.pe2} | samtools view -b -o {output.bam}
+        bowtie2-build --threads {threads} -f {input} {params.prefix} &> {log}
         """
 
-rule align_bams:
+rule Align_PE_Bams:
     input:
-        index="Assembly/XG.1.bt2",
-        fastq="fastq/SE_{fq}_filtered.fastq.gz"
+        index=f'{config["assembly"]}/{{sample}}-SIMPLIFIED.1.bt2',
+        pe1=f'{config["fastq"]}/{{fq}}_1.fastq.gz',
+        pe2=f'{config["fastq"]}/{{fq}}_2.fastq.gz'
+    output:
+        bam=temp("Bams/PE_{sample}-{fq}.bam")
+    log: f'Logs/Align_PE_Bams/{{sample}}-{{fq}}.{config["log_id"]}.log'
     params:
-        index="Assembly/XG"
-    group: "main"
-    output:
-        bam="Bams/{fq}.bam"
+        index=f"{config['assembly']}/{{sample}}-SIMPLIFIED"
+    group: "Aligning"
+    priority: 100
+    threads: config["threads"]
     shell:
         """
-        bowtie2 --threads 128 -k 5 -x {params.index} -U {input.fastq} | samtools view -b -o {output.bam}
+        bowtie2 --threads {threads} -k 5 -x {params.index} -1 {input.pe1} -2 {input.pe2} | samtools view -b -o {output.bam} &> {log}
         """
 
-rule sort_bams:
+rule Align_SE_Bams:
     input:
-        bam="Bams/{fq}.bam",
+        index=f'{config["assembly"]}/{{sample}}-SIMPLIFIED.1.bt2',
+        se=f'{config["fastq"]}/{{fq}}.fastq.gz'
     output:
-        sort="Bams/{fq}.sorted.bam"
-    group: "main"
+        bam=temp("Bams/SE_{sample}-{fq}.bam")
+    log: f'Logs/Align_SE_Bams/{{sample}}-{{fq}}.{config["log_id"]}.log'
+    params:
+        index=f'{config["assembly"]}/{{sample}}-SIMPLIFIED'
+    group: "Aligning"
+    threads: config["threads"]
+    priority: 100 
     shell:
         """
-        samtools sort -@128 -m1G -o {output.sort} {input.bam}
+        bowtie2 --threads {threads} -k 5 -x {params.index} -U {input.se} | samtools view -b -o {output.bam} &> {log}
         """
 
-rule index_bams:
+rule Sort_Bams:
     input:
-        sort="Bams/{fq}.sorted.bam"
+        bam="Bams/{ended}_{sample}-{fq}.bam",
     output:
-        bai="Bams/{fq}.sorted.bam.bai"
-    group: "main"
+        sort="Bams/{ended}_{sample}-{fq}.sorted.bam"
+    log: f'Logs/Sort_Bams/{{ended}}-{{sample}}-{{fq}}.{config["log_id"]}.log'
+    group: "Aligning"
+    threads: config["threads"]
+    priority: 100 
     shell:
         """
-        samtools index -@128 {input.sort}
+        samtools sort -@{threads} -m1G -o {output.sort} {input.bam} &> {log}
+        """
+
+rule Index_Bams:
+    input:
+        sort="Bams/{ended}_{sample}-{fq}.sorted.bam"
+    output:
+        bai="Bams/{ended}_{sample}-{fq}.sorted.bam.bai"
+    log: f'Logs/Index_Bams/{{ended}}-{{sample}}-{{fq}}.{config["log_id"]}.log'
+    group: "Aligning"
+    threads: config["threads"]
+    priority: 100 
+    shell:
+        """
+        samtools index -@{threads} {input.sort} &> {log}
+        """
+
+checkpoint BBMap_Count:
+    input:
+        sort="Bams/{ended}_{sample}-{fq}.sorted.bam"
+    output:
+        "Abundances/{ended}_{sample}-{fq}.abundance.txt"
+    log: f'Logs/BBMap_Count/{{ended}}-{{sample}}-{{fq}}.{config["log_id"]}.log'
+    params:
+        init_out="Abundances/{ended}_{sample}-{fq}.coverage.txt"
+    priority: 100
+    group: "Counting"
+    shell:
+        """
+        pileup.sh in={input.sort} out={params.init_out}
+        cut -f 1,5 {params.init_out} | grep -v '^#' > {output}
+        """
+
+rule Abundance_List:
+    input:
+        infiles = expand("Abundances/{abund_file}-{fq}.abundance.txt", zip,
+                         abund_file=glob_wildcards("Abundances/{sam}-{tmp}.abundance.txt").sam,
+                         fq=pe_fqs)
+    output:
+        "Abundances/Abundance_List.txt"
+    priority: 50
+    group: "Counting"
+    script:
+        "/depot/lindems/data/Dane/CondaEnvironments/SnakeStuff/scripts/make_abund_list.py"
+
+rule Depth_List:
+    input:
+        bams=expand("Bams/{sample}.sorted.bam",
+                    sample=glob_wildcards("Bams/{filename}.sorted.bam").filename)
+    output:
+        "Depths/Depth_List.txt"
+    priority: 50
+    group: "Counting"
+    shell:
+        """
+        jgi_summarize_bam_contig_depths --outputDepth {output} {input.bams}
+        """
+
+rule Coverage_List:
+    input:
+        assembly=f'{config["clean_assembly"]}/{{sample}}-SIMPLIFIED.fasta'
+    output:
+        bedfile="Beds/{sample}_10k.bed",
+        coverage="Beds/{sample}.coverage_table.tsv"
+    params:
+        fasta="Beds/{sample}_10k.fasta",
+        bams=expand("Bams/{sample}.sorted.bam",                                 
+                    sample=glob_wildcards("Bams/{filename}.sorted.bam").filename)
+    priority: 50
+    group: "Counting"
+    shell:
+        """
+        cut_up_fasta.py {input.assembly} -c 10000 -o 0 --merge_last -b {output.bedfile} > {params.fasta}
+        concoct_coverage_table.py {output.bedfile} {params.bams} > {output.coverage}
         """
