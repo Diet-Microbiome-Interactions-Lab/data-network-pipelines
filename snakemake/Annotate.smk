@@ -1,10 +1,11 @@
 import os
 from datetime import datetime
-tstamp = datetime.now().strftime("%d-%m-%Y_%H-%M-%S") 
+tstamp = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
 configfile: os.environ['DEFAULT_CONFIG']
 #configfile: "config.yaml"
 
-assemblies, = glob_wildcards(f'{config["contigs"]}/{{samples}}.{config["extension"]}')
+assemblies, = glob_wildcards(
+    f'{config["contigs"]}/{{samples}}.{config["extension"]}')
 
 rule all:
     input:
@@ -14,9 +15,9 @@ rule all:
 # INTERNAL PHASE
 rule Reformat_Fasta:
     input:
-        origin=f'{config["contigs"]}/{{sample}}.{config["extension"]}'
+        origin = f'{config["contigs"]}/{{sample}}.{config["extension"]}'
     output:
-        final=f'{config["clean_contigs"]}/{{sample}}-SIMPLIFIED.{config["extension"]}'
+        final = f'{config["clean_contigs"]}/{{sample}}-VERIFIED.{config["extension"]}'
     log: f'Logs/Reformat_Fasta__{{sample}}.{config["log_id"]}.log'
     group: "main"
     shell:
@@ -26,11 +27,11 @@ rule Reformat_Fasta:
 
 rule Create_Database:
     input:
-        gen=f'{config["clean_contigs"]}/{{sample}}-SIMPLIFIED.{config["extension"]}'
+        gen = f'{config["clean_contigs"]}/{{sample}}-VERIFIED.{config["extension"]}'
     output:
-        out=f'{config["contigdb"]}/{{sample}}.db'
+        out = f'{config["contigdb"]}/{{sample}}.db'
     params:
-        title='This is my project',
+        title = 'This is my project',
     log: f'Logs/Create_Database__{{sample}}.{config["log_id"]}.log'
     threads: config["threads"]
     group: "main"
@@ -41,7 +42,7 @@ rule Create_Database:
 
 rule Run_HMMs:
     input:
-        one=ancient(f'{config["contigdb"]}/{{sample}}.db'),
+        one = ancient(f'{config["contigdb"]}/{{sample}}.db'),
     output:
         touch("Annotations/HMMs/{sample}.run_hmm")
     log: f'Logs/Run_HMMs__{{sample}}.{config["log_id"]}.log'
@@ -55,9 +56,9 @@ rule Run_HMMs:
 
 rule Run_SCG_Taxonomy:
     input:
-        db=ancient(f'{config["contigdb"]}/{{sample}}.db')
+        db = ancient(f'{config["contigdb"]}/{{sample}}.db')
     output:
-        estimate_out="Annotations/Other/{sample}.estimate_scgs",
+        estimate_out = "Annotations/Other/{sample}.estimate_scgs",
     log:
         f'Logs/Run_SCGs__{{sample}}.{config["log_id"]}.log'
     priority: 90
@@ -70,7 +71,7 @@ rule Run_SCG_Taxonomy:
 
 rule Run_COGs:
     input:
-        ancient(f'{config["contigdb"]}/{{sample}}.db') 
+        ancient(f'{config["contigdb"]}/{{sample}}.db')
     output:
         touch("Annotations/Cog/{sample}.cog")
     log: f'Logs/Run_COGs__{{sample}}.{config["log_id"]}.log'
@@ -87,7 +88,7 @@ rule Run_Kegg:
         ancient(f'{config["contigdb"]}/{{sample}}.db')
     output:
         touch("Annotations/Kegg/{sample}.kegg")
-    log: f'Logs/Run_Kegg__{{sample}}.{config["log_id"]}.log' 
+    log: f'Logs/Run_Kegg__{{sample}}.{config["log_id"]}.log'
     threads: config["threads"]
     group: "main"
     priority: 25
@@ -116,7 +117,7 @@ rule Export_FAA:
         ancient(f'{config["contigdb"]}/{{sample}}.db')
     output:
         "FAAs/{sample}.faa"
-    log: f'Logs/Export_FAA__{{sample}}.{config["log_id"]}.log'   
+    log: f'Logs/Export_FAA__{{sample}}.{config["log_id"]}.log'
     group: "main"
     priority: 15
     shell:
@@ -129,7 +130,7 @@ rule Export_Gene_Calls:
         ancient(f'{config["contigdb"]}/{{sample}}.db')
     output:
         "GeneCalls/{sample}.gff"
-    log: f'Logs/Export_Gene_Calls__{{sample}}.{config["log_id"]}.log'   
+    log: f'Logs/Export_Gene_Calls__{{sample}}.{config["log_id"]}.log'
     group: "main"
     priority: 15
     shell:
@@ -155,7 +156,7 @@ rule RAST_Reformat:
     input:
         "Annotations/RAST/{sample}-RAST-FAA.txt"
     output:
-         "Annotations/RAST/{sample}-RAST-FAA.txt.anvio"
+        "Annotations/RAST/{sample}-RAST-FAA.txt.anvio"
     log: f'Logs/RAST_Reformat__{{sample}}.{config["log_id"]}.log'
     group: "main"
     priority: 10
@@ -166,11 +167,11 @@ rule RAST_Reformat:
 
 rule RAST_Import:
     input:
-        db=ancient(f'{config["contigdb"]}/{{sample}}.db'),
-        imp="Annotations/RAST/{sample}-RAST-FAA.txt.anvio"
+        db = ancient(f'{config["contigdb"]}/{{sample}}.db'),
+        imp = "Annotations/RAST/{sample}-RAST-FAA.txt.anvio"
     output:
         touch("Annotations/RAST/{sample}.rast_added")
-    log: f'Logs/RAST_Import__{{sample}}.{config["log_id"]}.log' 
+    log: f'Logs/RAST_Import__{{sample}}.{config["log_id"]}.log'
     group: "main"
     priority: 10
     shell:
@@ -182,9 +183,9 @@ rule TigrFam_Run:
     input:
         "FAAs/{sample}.faa"
     output:
-        one="Annotations/TigrFamResults/{sample}.hmmer.TIGR.hmm",
-        two="Annotations/TigrFamResults/{sample}.hmmer.TIGR.tbl"
-    log: f'Logs/TigrFam_Run__{{sample}}.{config["log_id"]}.log' 
+        one = "Annotations/TigrFamResults/{sample}.hmmer.TIGR.hmm",
+        two = "Annotations/TigrFamResults/{sample}.hmmer.TIGR.tbl"
+    log: f'Logs/TigrFam_Run__{{sample}}.{config["log_id"]}.log'
     threads: config["threads"]
     group: "main"
     priority: 10
@@ -199,7 +200,7 @@ rule TigrFam_Reformat:
     output:
         "Annotations/TigrFamResults/{sample}.hmmer.TIGR.anvio.tbl"
     params:
-        tfam="/depot/lindems/data/Dane/CondaEnvironments/SnakeStuff/scripts/TFAM-Roles.txt"
+        tfam = "/depot/lindems/data/Dane/CondaEnvironments/SnakeStuff/scripts/TFAM-Roles.txt"
     log: f'Logs/TigrFam_Reformat__{{sample}}.{config["log_id"]}.log'
     group: "main"
     priority: 10
@@ -210,8 +211,8 @@ rule TigrFam_Reformat:
 
 rule TigrFam_Import:
     input:
-        db=ancient(f'{config["contigdb"]}/{{sample}}.db'),
-        imp="Annotations/TigrFamResults/{sample}.hmmer.TIGR.anvio.tbl"
+        db = ancient(f'{config["contigdb"]}/{{sample}}.db'),
+        imp = "Annotations/TigrFamResults/{sample}.hmmer.TIGR.anvio.tbl"
     output:
         touch("Annotations/TigrFamResults/{sample}.tigr_added")
     log: f'Logs/TigrFam_Import__{{sample}}.{config["log_id"]}.log'
@@ -225,18 +226,18 @@ rule TigrFam_Import:
 # EXPORTING ANNOTATIONS
 rule Export_Annotations:
     input:
-        db=ancient(f'{config["contigdb"]}/{{sample}}.db'),
-        hmms="Annotations/HMMs/{sample}.run_hmm",
-        cogs="Annotations/Cog/{sample}.cog",
-        kegg="Annotations/Kegg/{sample}.kegg",
-        pfams="Annotations/Pfam/{sample}.pfam",
-        figfams="Annotations/RAST/{sample}.rast_added",
-        tigrfams="Annotations/TigrFamResults/{sample}.tigr_added",
+        db = ancient(f'{config["contigdb"]}/{{sample}}.db'),
+        hmms = "Annotations/HMMs/{sample}.run_hmm",
+        cogs = "Annotations/Cog/{sample}.cog",
+        kegg = "Annotations/Kegg/{sample}.kegg",
+        pfams = "Annotations/Pfam/{sample}.pfam",
+        figfams = "Annotations/RAST/{sample}.rast_added",
+        tigrfams = "Annotations/TigrFamResults/{sample}.tigr_added",
     output:
-        out="Annotations/Annotations-Exported/{sample}.gff3"
-    log: f'Logs/Export_Annotations__{{sample}}.{config["log_id"]}.log' 
+        out = "Annotations/Annotations-Exported/{sample}.gff3"
+    log: f'Logs/Export_Annotations__{{sample}}.{config["log_id"]}.log'
     params:
-        annotations="FigFams,KEGG_Module,COG20_PATHWAY,TIGRFAM,KOfam,KEGG_Class,COG20_FUNCTION,Pfam,COG20_CATEGORY"
+        annotations = "FigFams,KEGG_Module,COG20_PATHWAY,TIGRFAM,KOfam,KEGG_Class,COG20_FUNCTION,Pfam,COG20_CATEGORY"
     group: "exporting"
     priority: 0
     shell:
@@ -246,10 +247,10 @@ rule Export_Annotations:
 
 rule Reformat_Gff3:
     input:
-        anvio_annotations="Annotations/Annotations-Exported/{sample}.gff3",
-        gene_calls="GeneCalls/{sample}.gff",
+        anvio_annotations = "Annotations/Annotations-Exported/{sample}.gff3",
+        gene_calls = "GeneCalls/{sample}.gff",
     output:
-        gff3_final="GFF3-Final/{sample}.gff3"
+        gff3_final = "GFF3-Final/{sample}.gff3"
     log: f'Logs/Reformat_Gff3__{{sample}}.{config["log_id"]}.log'
     group: "exporting"
     priority: 0
@@ -257,6 +258,3 @@ rule Reformat_Gff3:
         """
         combineFunctionsAndGeneCalls.py {input.gene_calls} {input.anvio_annotations} {output.gff3_final} &> {log}
         """
-
-# OTHER ANNOTATIONS
-

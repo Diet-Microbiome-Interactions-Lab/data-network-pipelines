@@ -1,0 +1,13 @@
+analysis: 'Metagenomic'
+
+# File Specifications
+contigs: "fasta_files"
+extension: "fasta"
+verified_contigs: "fasta_files_verified"
+contig_db: "contig_dbs"
+
+# Computing
+threads: 80
+
+# Logging
+log_id: "AnnotatingMAGs"
