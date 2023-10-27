@@ -179,9 +179,26 @@ rule RAST_Import:
         anvi-import-functions -c {input.db} -i {input.imp} &> {log}
         """
 
+rule CAZyme_Run:
+    input:
+        fasta = f'{config["clean_contigs"]}/{{sample}}-VERIFIED.{config["extension"]}'
+    params:
+        outdir=f'Annotations/DBCan4/{{sample}}/',
+        outpref=f'{{sample}}_'
+        db=f'{config["cazyme_db"]}'
+    output:
+        final=f'Annotations/DBCan4/{{sample}}/{{sample}}_overview.txt'
+    shell:
+        """
+        run_dbcan {input.fasta} prok --out_dir {params.outdir} --tf_cpu 10 --out_pre {params.outpref} \
+        --db_dir {params.db} -c cluster
+        """
+
 rule TigrFam_Run:
     input:
         "FAAs/{sample}.faa"
+    params:
+        db=f'{config["tigrfam_db"]}'
     output:
         one = "Annotations/TigrFamResults/{sample}.hmmer.TIGR.hmm",
         two = "Annotations/TigrFamResults/{sample}.hmmer.TIGR.tbl"
@@ -191,7 +208,7 @@ rule TigrFam_Run:
     priority: 10
     shell:
         """
-        hmmsearch -o {output.one} --tblout {output.two} --cpu {threads} /depot/lindems/data/Databases/TIGRFams/AllTigrHmms.hmm {input} &> {log}
+        hmmsearch -o {output.one} --tblout {output.two} --cpu {threads} {params.db} {input} &> {log}
         """
 
 rule TigrFam_Reformat:

@@ -6,6 +6,10 @@ extension: "fasta"
 verified_contigs: "fasta_files_verified"
 contig_db: "contig_dbs"
 
+# Databases
+cazyme_db: ""
+tigrfam_db: ""
+
 # Computing
 threads: 80
 
