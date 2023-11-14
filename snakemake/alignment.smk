@@ -1,25 +1,27 @@
-configfile: os.environ['DEFAULT_CONFIG']
+# configfile: os.environ['DEFAULT_CONFIG']
+configfile: "config/config.yaml"
 
 assemblies, = glob_wildcards(f'{config["assembly"]}/{{samples}}.{config["assembly_extension"]}')
 #print(f'Assemblies: {assemblies}')
 
-pe_fqs, = glob_wildcards(f'{config["fastq"]}/{{fq_samples}}_1.{config["fq_extension"]}')
-#print(pe_fqs)
+pe_fqs, = glob_wildcards(f'{config["fastq"]}/{{fq_samples}}_R1_001.{config["fq_extension"]}')
+# print(pe_fqs)
+print(f'Analyzing {len(pe_fqs)} fastq pairs.')
 #print('Now to the se...')
-se_fqs, = glob_wildcards(f'{config["fastq"]}/{{fq_samples}}.{config["fq_extension"]}')
-se_fqs = [f for f in se_fqs if '_1' not in f]
-se_fqs = [f for f in se_fqs if '_2' not in f]
+# se_fqs, = glob_wildcards(f'{config["fastq"]}/{{fq_samples}}.{config["fq_extension"]}')
+# se_fqs = [f for f in se_fqs if '_1' not in f]
+# se_fqs = [f for f in se_fqs if '_2' not in f]
 #print(se_fqs)
 
 rule all:
     input:
-        expand(f"{config['assembly']}/{{sample}}-SIMPLIFIED.1.bt2", sample=assemblies),
+        expand(f"{config['clean_assembly']}/{{sample}}-SIMPLIFIED.1.bt2", sample=assemblies),
         expand("Bams/PE_{sample}-{fq}.sorted.bam.bai", fq=pe_fqs, sample=assemblies),
-        expand("Bams/SE_{sample}-{fq}.sorted.bam.bai", fq=se_fqs, sample=assemblies),
-        expand("Abundances/PE_{sample}-{fq}.abundance.txt", fq=pe_fqs, sample=assemblies),
-        "Abundances/Abundance_List.txt",
-        "Depths/Depth_List.txt",
-        expand("Beds/{sample}.coverage_table.tsv", sample=assemblies)
+        # expand("Bams/SE_{sample}-{fq}.sorted.bam.bai", fq=se_fqs, sample=assemblies),
+        # expand("Abundances/PE_{sample}-{fq}.abundance.txt", fq=pe_fqs, sample=assemblies),
+        # "Abundances/Abundance_List.txt",
+        # "Depths/Depth_List.txt",
+        # expand("Beds/{sample}.coverage_table.tsv", sample=assemblies)
 
 rule Reformat_Fasta:
     input:
@@ -38,10 +40,10 @@ rule Create_Index:
     input:
         f'{config["clean_assembly"]}/{{sample}}-SIMPLIFIED.fasta'
     output:
-        f'{config["assembly"]}/{{sample}}-SIMPLIFIED.1.bt2'
+        f'{config["clean_assembly"]}/{{sample}}-SIMPLIFIED.1.bt2'
     log: f'Logs/Create_Index/{{sample}}.{config["log_id"]}.log'
     params:
-        prefix=f'{config["assembly"]}/{{sample}}-SIMPLIFIED'
+        prefix=f'{config["clean_assembly"]}/{{sample}}-SIMPLIFIED'
     group: "Indexing"
     priority: 100
     threads: config["threads"]
@@ -52,14 +54,14 @@ rule Create_Index:
 
 rule Align_PE_Bams:
     input:
-        index=f'{config["assembly"]}/{{sample}}-SIMPLIFIED.1.bt2',
-        pe1=f'{config["fastq"]}/{{fq}}_1.fastq.gz',
-        pe2=f'{config["fastq"]}/{{fq}}_2.fastq.gz'
+        index=f'{config["clean_assembly"]}/{{sample}}-SIMPLIFIED.1.bt2',
+        pe1=f'{config["fastq"]}/{{fq}}_R1_001.fastq.gz',
+        pe2=f'{config["fastq"]}/{{fq}}_R2_001.fastq.gz'
     output:
         bam=temp("Bams/PE_{sample}-{fq}.bam")
     log: f'Logs/Align_PE_Bams/{{sample}}-{{fq}}.{config["log_id"]}.log'
     params:
-        index=f"{config['assembly']}/{{sample}}-SIMPLIFIED"
+        index=f"{config['clean_assembly']}/{{sample}}-SIMPLIFIED"
     group: "Aligning"
     priority: 100
     threads: config["threads"]
@@ -70,13 +72,13 @@ rule Align_PE_Bams:
 
 rule Align_SE_Bams:
     input:
-        index=f'{config["assembly"]}/{{sample}}-SIMPLIFIED.1.bt2',
+        index=f'{config["clean_assembly"]}/{{sample}}-SIMPLIFIED.1.bt2',
         se=f'{config["fastq"]}/{{fq}}.fastq.gz'
     output:
         bam=temp("Bams/SE_{sample}-{fq}.bam")
     log: f'Logs/Align_SE_Bams/{{sample}}-{{fq}}.{config["log_id"]}.log'
     params:
-        index=f'{config["assembly"]}/{{sample}}-SIMPLIFIED'
+        index=f'{config["clean_assembly"]}/{{sample}}-SIMPLIFIED'
     group: "Aligning"
     threads: config["threads"]
     priority: 100 
