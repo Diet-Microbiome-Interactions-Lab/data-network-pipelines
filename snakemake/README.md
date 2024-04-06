@@ -114,3 +114,9 @@ The config file should look like this:
 # text in gray
 ! text in orange
 ```
+
+## Things that need addressing
+- Accounting for paired-end reads non-extension suffix better
+- Some way of determining the last time a rule's executable was verified
+- Way of determining the versions of each tools (make sure they are the most up-to-date)
+- 
