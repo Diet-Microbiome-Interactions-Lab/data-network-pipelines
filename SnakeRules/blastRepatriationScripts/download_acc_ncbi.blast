@@ -1,0 +1,40 @@
+#!/bin/bash -l
+
+
+ 
+{
+read
+while IFS= read -r line
+	do
+		BIN=($(echo "$line" | awk -F "\t" '{ print $1 }'))
+		ACC=($(echo "$line" | awk -F "\t" '{ print $2 }'))
+		esearch -db nucleotide -query $ACC < /dev/null | efetch -format fasta > $2/$BIN.fasta
+		echo "$BIN"
+		echo "$ACC"
+    
+    done 
+}< $1
+
+mapfile -t ACCS < <(awk '{print $2}' $1)
+mapfile -t BINS < <(awk '{print $1}' $1)
+
+#while IFS= read -r line; do
+for i in "${!ACCS[@]}"; do
+		#BIN=($(echo "$line" | awk -F "\t" '{ print $1 }'))
+		#ACC=($(echo "$line" | awk -F "\t" '{ print $2 }'))
+		ACC="${ACCS[i]}"
+		BIN="${BINS[i]}"
+		esearch -db assembly -query $ACC \
+			| esummary \
+		    | xtract -pattern DocumentSummary -element FtpPath_GenBank \
+		    | while read -r line ; 
+			do
+			fname=$(echo $line | grep -o 'GCA_.*' | sed 's/$/_genomic.fna.gz/') ;
+			wget -O $BIN.fasta.gz "$line/$fname";
+			gunzip $BIN.fasta.gz
+			done
+		echo "$BIN"
+		echo "$ACC"
+done
+
+touch $2/NCBI_Assembly_Download.tkn

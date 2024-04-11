@@ -1,0 +1,24 @@
+---
+'''
+Configuration file for baseMetagenomics.smk
+- The specific information contained in this file
+will be changed from analysis to analysis.
+
+This file contains a running list of all config variable that
+could possibly be needed in the snakemake file.
+- Add to this as necessary.
+'''
+
+# Required Attributes:
+# Step 0
+assembly: [/path/to/myassembly.fasta]
+index: [/path/to/index]
+threads: 20
+
+# Step 1
+readsize: 150
+threshold: 0.99
+maxbin_abunds: [/path/to/abundA, ..., /path/to/abundN]
+refinem_bams: [/path/to/bamA, ..., /path/to/bamN]
+reference: ["/scratch/snyder/d/ddeemer/WhiteRed/Red1/reference"]
+...
